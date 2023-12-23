@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户</title>
+
+    <link rel="stylesheet" href="layui/css/layui.css">
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="layui/layui.js"></script>
+
+    <style>
+        .layui-container{
+            margin-top: 50px;
+        }
+        .layui-form-label {
+            margin-left: 100px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="layui-container" >
+    <div class="layui-col-md9 layui-col-md-offset2" >
+
+        <div class="layui-card-body">
+            <form class="layui-form"  lay-filter="form">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">用户名</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="name" placeholder="请输入用户名" autocomplete="off" class="layui-input">
+                    </div>
+                    <button id="reloadBtn" class="layui-btn" lay-submit lay-filter="search">搜索</button>
+                </div>
+            </form>
+        </div>
+
+        <button class="layui-btn layui-btn-radius" lay-submit lay-filter="addUser">添加用户</button>
+        <button class="layui-btn layui-btn-radius layui-btn-danger" lay-submit lay-filter="delUser">删除用户</button>
+        <div class="layui-card">
+            <div class="layui-card-header">用户列表</div>
+            <div class="layui-card-body">
+                <table id="userTable" lay-filter="userTable"></table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!--表格操作列-->
+<script type="text/html" id="operateBar">
+    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+</script>
+
+<script>
+
+    const userListUrl = '/listUsers';
+    const toAddUserPageUrl = '/toAddUserPage';
+    const toEditUserPageUrl = '/toEditUserPage?id=';
+    const deleteUserUrl = '/deleteUsers?ids=' ;
+
+    function ajaxRequest(url, method, data, successCall) {
+        $.ajax({
+            url: url,
+            type: method,
+            data: data,
+            success: function (res) {
+                if (res.code === 0) {
+                //回调function (users){}  users => { tableRender(users) }; var users = res.data;
+                    successCall(res.data);
+                } else {
+                    layer.msg(res.msg, {icon: 2});
+                }
+            },
+            error: function () {
+                layer.msg('请求失败', {icon: 2});
+            }
+        });
+    }
+
+    function tableRender(users) {
+        layui.use('table', function () {
+            let table = layui.table;
+            table.render({
+                elem: '#userTable',
+                data: users, // ${users} 表达式，对应控制器返回的JSON数据
+                cellMinWidth: 80,
+                page: true,
+                limits: [5,10,30,50,100],
+                cols: [[//layui表头参数
+                    {type: "checkbox", width:60 }, //复选框
+                    {field: 'id', title: 'ID'},
+                    {field: 'name', title: '用户名'},
+                    {field: 'age', title: '年龄'},
+                    {
+                        field: 'operate', // 新增的操作列
+                        title: '操作',
+                        align: 'center',
+                        toolbar: '#operateBar'
+                    }
+                ]]
+            });
+        });
+    }
+
+    //页面默认查询用户列表
+    $(function () {
+        let params = {name: ''}; // 设置默认的搜索参数
+        ajaxRequest(userListUrl, 'GET', params, users => {
+            tableRender(users);
+        })
+    })
+
+    layui.use('form', function () {
+        let form = layui.form;
+        //搜索按钮事件
+        form.on('submit(search)', function (data) {
+            let params = data.field;
+            ajaxRequest(userListUrl, 'GET', params, users => {
+                tableRender(users);
+            });
+            return false;
+        });
+
+        // 添加用户按钮事件
+        form.on('submit(addUser)', function () {
+            layer.open({
+                type: 2,
+                title: '添加新用户',
+                content: toAddUserPageUrl,
+                area: ['50%', '40%'],
+            });
+            return false; // 阻止表单提交
+        });
+
+    });
+
+
+    layui.use(['table', 'form', 'layer'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        //监控表格操作列，编辑用户
+        table.on('tool(userTable)', function (obj) {
+            let data = obj.data; // 获取当前行数据
+            let layEvent = obj.event; // 获取事件名称
+            console.log(obj)
+            if (layEvent === 'edit') {
+                layer.open({
+                    type: 2,
+                    title: '编辑用户',
+                    content: toEditUserPageUrl + data.id,
+                    area: ['50%', '40%'],
+
+                });
+            }
+        });
+    });
+
+
+
+
+    layui.use(['form','table'],  function () {
+        let form = layui.form;
+        let table = layui.table;
+        //删除按钮事件
+        form.on('submit(delUser)', function () {
+            let checkStatus = table.checkStatus('userTable'); // 获取选中状态
+            let checkData = checkStatus.data; // 获取选中的数据
+
+            if (checkData.length === 0) { // 没有选中任何数据
+                layer.msg('请先选择要删除的用户', {icon: 2});
+                return false;
+            }
+
+            let ids = checkData.map(item => item.id).join(','); // 获取选中用户的ID列表
+
+            layer.confirm('确认要删除这些用户吗？', {icon: 3, title: '提示'}, function (index) {
+                ajaxRequest(deleteUserUrl + ids, 'DELETE', {ids: ids}, function (data) {
+                    layer.msg('删除成功', {icon: 1});
+                    // 刷新表格
+                    $('#reloadBtn').click();
+
+                });
+                layer.close(index);
+            });
+            return false;
+        });
+
+    });
+
+
+
+</script>
+
+</body>
+</html>

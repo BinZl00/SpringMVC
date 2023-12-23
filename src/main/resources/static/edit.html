@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑用户</title>
+
+    <link rel="stylesheet" href="layui/css/layui.css">
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="layui/layui.js"></script>
+
+    <style>
+        .layui-container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .layui-form-item {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="layui-container" >
+
+    <div class="layui-card-body">
+        <form class="layui-form" lay-filter="editUserForm">
+            <input type="hidden" name="id" id="userId">
+            <div class="layui-form-item">
+                <label class="layui-form-label">用户名</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="name" placeholder="请输入用户名" lay-verify="required" autocomplete="off" class="layui-input"  />
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">年龄</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="age" placeholder="请输入年龄" lay-verify="required|number" autocomplete="off" class="layui-input"  />
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block">
+                    <button class="layui-btn" lay-submit lay-filter="edit">保存</button>
+                    <button class="layui-btn layui-btn-primary" lay-submit lay-filter="clear">清空</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+
+<script>
+    const getUserByIdUrl = '/getUserById';
+    const updateUserUrl = '/updateUser';
+
+    function ajaxRequest(url, method, data, successCall) {
+        $.ajax({
+            url: url,
+            type: method,
+            data: data,
+            success: function (res) {
+                if (res.code === 0) {
+                    // 有用到res.data，successCall回调函数将响应数据作为参数传递
+                    successCall(res.data);
+                } else {
+                    layer.msg(res.msg, {icon: 2});
+                }
+            },
+            error: function () {
+                layer.msg('请求失败', {icon: 2});
+            }
+        });
+    }
+
+
+    layui.use(['form', 'layer'], function () {
+        let form = layui.form;
+        let layer = layui.layer;
+
+        // 获取用户ID
+        let userId = location.search.split('=')[1];
+
+        //回显数据
+        ajaxRequest(getUserByIdUrl, 'GET', { id: userId }, function (userData) {
+            form.val('editUserForm', {
+                'age': userData.age,
+                'name': userData.name,
+            });
+            form.render();
+            // 将用户ID添加到表单字段中，后续修改用户信息用到
+            $('#userId').val(userId);
+        });
+
+
+        // 清空用户名和年龄字段
+        form.on('submit(clear)', function (data) {
+            form.val('editUserForm', {
+                'name': '',   // "name": "value"
+                'age': ''
+            });
+            form.render(); // 重新渲染表单，清除验证提示
+            return false; // 阻止表单提交
+        });
+
+
+        /*$.ajax({//回显数据
+            url: '/getUserById',
+            type: 'GET',
+            data: { id: userId },
+            success: function (res) {
+                if (res.code === 0) {
+                    let userData = res.data;
+                    form.val('editUserForm', {
+                        'age': userData.age,
+                        'name': userData.name,
+                    });
+                    form.render(); // 重新渲染表单，显示用户数据
+                    // 将用户ID添加到表单字段中
+                    $('#userId').val(userId);
+
+                } else {
+                    layer.msg(res.message);
+                }
+            },
+            error: function () {
+                layer.msg('获取用户数据失败');
+            }
+        });*/
+
+    });
+
+
+    layui.use(['form', 'layer'], function () {
+        let form = layui.form;
+        let layer = layui.layer;
+        // 保存事件
+        form.on('submit(edit)', function (data) {
+            let params = data.field;
+
+            $.ajax({
+                url: updateUserUrl,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(params), // 将数据转换为JSON字符串
+                success: function (res) {
+                    if (res.code === 0) {
+                        layer.msg('用户信息更新成功', { icon: 1, time: 1500 }, function () {
+                            // 关闭当前弹层
+                            let index = parent.layer.getFrameIndex(window.name);
+                            parent.layer.close(index);
+                            // 刷新父页面的表格数据
+                            parent.$('#reloadBtn').click();
+                        });
+                    } else {
+                        layer.msg(res.message);
+                    }
+                },
+                error: function () {
+                    layer.msg('更新用户数据失败');
+                }
+
+            });
+
+            return false; // 阻止表单提交
+
+        });
+
+    })
+
+
+
+</script>
+
+</body>
+</html>

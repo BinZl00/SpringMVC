@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>添加新用户</title>
+
+    <link rel="stylesheet" href="layui/css/layui.css">
+    <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="layui/layui.js"></script>
+
+    <style>
+        .layui-container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .layui-form-item {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="layui-container" >
+
+    <div class="layui-card-body">
+        <form class="layui-form"  lay-filter="addUserForm">
+            <div class="layui-form-item">
+                <label class="layui-form-label">用户名</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="name" placeholder="请输入用户名" lay-verify="required" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">年龄</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="age" placeholder="请输入年龄" lay-verify="required|number" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block">
+                    <button class="layui-btn" lay-submit lay-filter="add">保存</button>
+                    <button class="layui-btn layui-btn-primary" lay-submit lay-filter="clear">清空</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+
+
+<script>
+
+   /* function ajaxRequest(url, method, data,) {
+        $.ajax({
+            url: url,
+            type: method,
+            data: JSON.stringify(data), //数据转换为JSON字符串,控制器@RequestBody接收
+            contentType: 'application/json', // 改设置，默认的请求头会转为Get请求
+            success: function (res) {
+                if (res.code === 0) {
+                    layer.msg('添加新用户成功', {icon: 1});
+
+                } else {
+                    layer.msg(res.msg, {icon: 2});
+                }
+            },
+            error: function () {
+                layer.msg('添加新用户失败', {icon: 2});
+            }
+        });
+    }*/
+
+    layui.use(['form', 'layer'], function () {
+        let form = layui.form;
+        let layer = layui.layer;
+
+        // 保存事件
+        form.on('submit(add)', function (data) {
+            let params = data.field;
+
+            $.ajax({
+                url: '/addUser',
+                type: 'POST',
+                data: JSON.stringify(params),
+                contentType: 'application/json',
+                success: function (response) {
+                    if (response.code === 0) {
+                        layer.msg('添加新用户成功', {icon: 1});
+
+                        setTimeout(function () {
+                            parent.layer.closeAll('iframe'); // 关闭当前弹出层
+                            //parent.location.reload(); // 刷新父页面以重新加载用户列表
+                            // 触发父页面的搜索按钮事件，重新查询用户列表
+                            parent.$('#reloadBtn').click();
+                        }, 1000);
+
+                    } else {
+                        layer.msg(response.msg, {icon: 2});
+                    }
+                },
+                error: function () {
+                    layer.msg('请求失败', {icon: 2});
+                }
+            });
+
+            return false;
+        });
+
+
+        // 清空用户名和年龄字段
+        form.on('submit(clear)', function (data) {
+            /*$('input[name="name"]').val('');
+            $('input[name="age"]').val('');*/
+            form.val('addUserForm', {//class="layui-form" 所在元素属性 lay-filter="" 对应的值
+                'name': '',   // "name": "value"
+                'age': ''
+            });
+            form.render(); // 重新渲染表单，清除验证提示
+            return false; // 阻止表单提交
+        });
+
+
+    });
+
+
+
+</script>
+
+</body>
+</html>
